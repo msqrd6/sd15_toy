@@ -7,7 +7,7 @@ from PIL import Image
 from utils.utils import encode_prompt,prepare_empty_latent,decode_latents,image_to_tensor
 
 # model
-model_path = r"E:\lab\diffusers_model\v1-5-pruned-emaonly"
+model_path = ""
 
 # output
 output_dir = "generate"

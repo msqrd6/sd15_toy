@@ -12,8 +12,7 @@ from utils.dataset_utils import ControlNetDataset
 from utils.training_manager import TrainingManager
 
 # model
-model_path = r"E:\lab\diffusers_model\v1-5-pruned-emaonly"
-
+model_path = ""
 #dataset
 dataset_path = "dataset"
 
