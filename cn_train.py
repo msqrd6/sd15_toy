@@ -18,7 +18,7 @@ dataset_path = "dataset"
 
 # output
 output_dir = "controlnet_output"
-output_name = "test_only_color"
+output_name = "controlnet"
 
 # train prameter
 repeat = 1

@@ -21,7 +21,7 @@ dataset_path = "dataset"
 
 # output
 output_dir = "lora_output"
-output_name = "test"
+output_name = "lora"
 
 # training parameter
 rank = 128

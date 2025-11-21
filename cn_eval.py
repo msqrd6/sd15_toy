@@ -60,8 +60,8 @@ class ControlNetModule:
 
 controlnet_modules = [
     ControlNetModule(
-        model_path=r"E:\ダウンロード\30_reference_image",
-        image_path=r"E:\ダウンロード\C350_B026_005.png",
+        model_path="",
+        image_path="",
         guidance_start=0,
         guidance_end=0.8,
         cond_scale=1,
