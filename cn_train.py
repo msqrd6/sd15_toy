@@ -13,6 +13,7 @@ from utils.training_manager import TrainingManager
 
 # model
 model_path = ""
+
 #dataset
 dataset_path = "dataset"
 

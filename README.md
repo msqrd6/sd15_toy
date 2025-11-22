@@ -162,7 +162,7 @@ accelerate launch cn_train.py
 - `image_size`: 学習画像サイズ（デフォルト: 512）
 - `save_every_n_epochs`: チェックポイント保存間隔（デフォルト: 10）
 
-## 📊 データセット形式
+## データセット形式
 
 ### LoRA学習用データセット
 
