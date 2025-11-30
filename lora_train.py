@@ -13,7 +13,7 @@ from utils.lora_utils import inject_init_lora_into_model, get_lora_dict_from_mod
 from utils.trmn import TrainingManager
 
 # base_model
-model_path = "" # diffusers形式
+model_path = "diffusers_models\example_diffusers_model"
 
 # train_data
 dataset_path = "dataset"
@@ -52,16 +52,16 @@ vae = AutoencoderKL.from_pretrained(f"{model_path}/vae", torch_dtype=dtype).to(d
 unet = UNet2DConditionModel.from_pretrained(f"{model_path}/unet", torch_dtype=dtype).to(device)
 scheduler = DDPMScheduler.from_pretrained(model_path, subfolder="scheduler")
 
-# 元パラメータの凍結
+# freeze parametors
 vae.requires_grad_(False)
 unet.requires_grad_(False)
 text_encoder.requires_grad_(False)
 
-# lora注入前にデータセットを作る
+# dataset
 dataset = LoRADataset(dataset_path, vae, tokenizer, text_encoder, image_size,repeat=repeat)
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-# loraを注入
+# inject lora
 inject_init_lora_into_model(unet,
                            rank,
                            alpha,
@@ -133,5 +133,5 @@ for epoch in tm.epochs:
     if tm.is_savepoint():
         _save(f"{tm.current_epoch}_{output_name}",unet)
     
-    tm.plot( f"log_{tm.current_epoch}",f"{output_dir}/plot")
+    tm.plot( f"log_{tm.current_epoch}",f"{output_dir}\plot")
     tm.epoch_step()

@@ -12,7 +12,7 @@ from utils.dataset_utils import ControlNetDataset
 from utils.trmn import TrainingManager
 
 # model
-model_path = "" #diffusers形式
+model_path = "diffusers_models\example_diffusers_model" 
 
 #dataset
 dataset_path = "dataset"
@@ -131,5 +131,5 @@ for epoch in tm.epochs:
     if tm.is_savepoint():
         _save_weight(f"{tm.current_epoch}_{output_name}")
 
-    tm.plot(f"log_{tm.current_epoch}",f"{output_dir}/plot")
+    tm.plot(f"log_{tm.current_epoch}",f"{output_dir}\plot")
     tm.epoch_step()

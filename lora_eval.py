@@ -11,7 +11,7 @@ from utils.convert_utils import convert_injectable_dict_from_khoya_weight
 
 
 # base_model
-model_path = ""
+model_path = "diffusers_models\example_diffusers_model"
 
 # lora
 lora_path = ""

@@ -6,7 +6,7 @@ from tqdm import tqdm
 from utils.utils import encode_prompt, prepare_empty_latent,decode_latents
 
 # base_model
-model_path = ""
+model_path = "diffusers_models\example_diffusers_model"
 
 # output
 output_dir = "generate"
