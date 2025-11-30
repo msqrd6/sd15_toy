@@ -101,7 +101,6 @@ for i, t in enumerate(tqdm(scheduler.timesteps)):
                 ]
                 mid_sample_sum = mid_sample_sum + controlnet_out.mid_block_res_sample
 
-        # ControlNet 出力を [無条件 (ゼロ), 条件付き] に拡張
         down_block_res_samples = [
             torch.cat([torch.zeros_like(d), d]) for d in down_samples_sum
         ]

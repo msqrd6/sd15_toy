@@ -2,18 +2,30 @@ import torch
 from PIL import Image
 from torchvision import transforms
 from diffusers import AutoencoderKL
-import torch
 import torch.nn as nn
 from typing import Union
-from copy import deepcopy
 
-def get_optimal_torch_dtype(dtype_name:str):
+
+def get_trainable_params(*models: nn.Module) -> list[torch.Tensor]:
+    trainable_params = []
+    for model in models:
+        for param in model.parameters():
+            if param.requires_grad:
+                trainable_params.append(param)
+    return trainable_params
+
+def get_optimal_torch_dtype(dtype_name:str, display:bool = False):
+    dtype,train_model_dtype = torch.float32, torch.float32
+
     if dtype_name == "fp16":
-        return torch.float16,torch.float32
+        dtype, train_model_dtype = torch.float16,torch.float32
     elif dtype_name == "bf16":
-        return torch.bfloat16,torch.bfloat16
-    else:
-        return torch.float32,torch.float32
+        dtype, train_model_dtype = torch.bfloat16,torch.bfloat16
+
+    if display:
+        print(f"dtype:{dtype}, trainable_dtype:{train_model_dtype}")
+    
+    return dtype, train_model_dtype
 
 def image_to_tensor(image: Image.Image)->torch.Tensor:
     width, height = image.size

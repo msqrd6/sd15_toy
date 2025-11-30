@@ -1,0 +1,184 @@
+import os
+import torch
+import torch.nn as nn
+import matplotlib.pyplot as plt
+from itertools import islice
+from tqdm import tqdm
+from torch.utils.data import DataLoader
+
+class TrainingManager():
+    def __init__(self, 
+                 training_models: list[nn.Module],
+                 dataloader: DataLoader,
+                 num_epochs: int,
+                 save_every_n_epochs: int = None,
+                 log_interval: int = None,
+                 valid_dataloader: DataLoader = None,
+                 valid_every_n_epochs: int = None,
+                 n_batches_valid: int = None,
+                 ):
+        
+        
+        self.dataloader = dataloader
+        try:
+            self.dataset_len = len(self.dataloader)
+        except:
+            self.dataset_len = 0
+
+        self.num_epochs = num_epochs
+        self.save_every_n_epochs = save_every_n_epochs
+
+        self.training_models = training_models
+
+        self.total_step = self.dataset_len * self.num_epochs
+        self.current_iter = 0
+        self.current_epoch = 1
+        self.epoch_loss = 0
+
+        # main progressbar
+        self.progress_bar = tqdm(range(self.total_step), desc=f"Epoch {1}/{num_epochs}")
+
+        # epoch iter
+        self.epochs = range(1, num_epochs + 1)
+
+        # log
+        self.log = []
+        self.log_interval = log_interval
+        self.log_loss = 0.0
+
+        # valid
+        self.valid_every_n_epochs = valid_every_n_epochs
+        self._raw_valid_dataloader = valid_dataloader 
+        
+        # バッチ数の決定
+        if valid_dataloader is not None:
+            if n_batches_valid is None:
+                self.n_batches_valid = len(valid_dataloader)
+            else:
+                self.n_batches_valid = n_batches_valid
+        else:
+            self.n_batches_valid = 0
+            
+        self.valid_loss = 0.0
+        self.val_log = []
+
+        # set train mode
+        self.train_mode()
+
+    @property
+    def valid_dataloader(self):
+        if self._raw_valid_dataloader is None:
+            return []
+
+        return islice(self._raw_valid_dataloader, self.n_batches_valid)
+
+
+    def train_mode(self):
+        for model in self.training_models:
+            if hasattr(model, 'train') and callable(model.train):
+                model.train()
+
+    def eval_mode(self):   
+        for model in self.training_models:
+            if hasattr(model, 'eval') and callable(model.eval):
+                model.eval()
+
+
+    def batch_step(self, loss, **kwargs) -> None:
+        loss = loss.item() if hasattr(loss, 'item') else loss
+
+        self.epoch_loss += loss
+        self.current_iter += 1
+
+        if self.log_interval is not None:
+            self.log_loss += loss
+            if self.current_iter % self.log_interval == 0:
+                avg_loss = self.log_loss / self.log_interval
+                self.log.append({'step': self.current_iter, 'loss': avg_loss})
+                self.log_loss = 0.0
+
+        self.progress_bar.update(1)
+        self.progress_bar.set_postfix(loss=f"{loss:.4f}", **kwargs)
+
+    def epoch_step(self, **kwargs) -> None:
+        avg_epoch_loss = self.epoch_loss / self.dataset_len if self.dataset_len > 0 else 0
+
+        msg = f"Epoch {self.current_epoch}/{self.num_epochs} | epoch_loss={avg_epoch_loss:.4f}"
+
+        if kwargs:
+            extra_msg = [f"{k}={v}" for k, v in kwargs.items()]
+            msg += ", " + ", ".join(extra_msg)
+
+        tqdm.write(msg) 
+
+        self.current_epoch += 1 
+        self.epoch_loss = 0
+      
+        if self.current_epoch <= self.num_epochs:
+            self.progress_bar.set_description(f"Epoch {self.current_epoch}/{self.num_epochs}")
+
+    def valid_step(self, loss):
+        loss = loss.item() if hasattr(loss, 'item') else loss
+        self.valid_loss += loss
+
+    def valid_start(self):
+        self.eval_mode()
+        torch.set_grad_enabled(False)
+
+    def valid_end(self):
+        if self.n_batches_valid > 0:
+            avg_loss = self.valid_loss / self.n_batches_valid
+        else:
+            avg_loss = 0
+        self.val_log.append({'step': self.current_iter, 'loss': avg_loss})
+        self.valid_loss = 0
+        torch.set_grad_enabled(True)
+        self.train_mode()
+
+    def is_savepoint(self) -> bool:
+        if self.current_epoch > self.num_epochs: return False # 終了後はFalse
+        if self.current_epoch == self.num_epochs:
+            return True
+        if self.save_every_n_epochs is not None and (self.current_epoch) % self.save_every_n_epochs == 0:
+            return True
+        return False
+
+    def is_validpoint(self) -> bool:
+        if self.current_epoch > self.num_epochs: return False
+        if self.valid_every_n_epochs is not None: 
+            if self.current_epoch == self.num_epochs:
+                return True
+            if (self.current_epoch) % self.valid_every_n_epochs == 0:
+                return True
+        return False
+
+
+    def plot(self, name: str = None, output_dir = None) -> None:
+        if self.log_interval is not None and len(self.log) > 0:
+            steps = [item['step'] for item in self.log]
+            losses = [item['loss'] for item in self.log]
+
+            plt.figure(figsize=(10, 5))
+            plt.plot(steps, losses, label='Training Loss')
+
+            if len(self.val_log) > 0:
+                v_steps = [item['step'] for item in self.val_log]
+                v_losses = [item['loss'] for item in self.val_log]
+                plt.plot(v_steps, v_losses, label='Validation Loss', marker='o', linestyle='--', color='orange')
+            
+            plt.xlabel('Steps')
+            plt.ylabel('Loss')
+            plt.title('Training Loss')
+            plt.legend()
+            plt.grid(True)
+
+            name = "training_loss" if name is None else name
+            if output_dir is None:
+                output_path = f"{name}.png"
+            else:
+                os.makedirs(output_dir, exist_ok=True)
+                output_path = os.path.join(output_dir, f"{name}.png")
+
+            plt.savefig(output_path)
+            plt.close()
+

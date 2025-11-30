@@ -2,17 +2,17 @@ import os
 import torch
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import StepLR
-from diffusers import UNet2DConditionModel, DDPMScheduler, AutoencoderKL, DDIMScheduler, ControlNetModel,EulerAncestralDiscreteScheduler
+from diffusers import UNet2DConditionModel, DDPMScheduler, AutoencoderKL, ControlNetModel
 from transformers import CLIPTokenizer, CLIPTextModel, Adafactor
 from transformers.optimization import AdafactorSchedule
 from accelerate import Accelerator
-#original
-from utils.utils import get_optimal_torch_dtype
+
+from utils.utils import get_optimal_torch_dtype, get_trainable_params
 from utils.dataset_utils import ControlNetDataset
-from utils.training_manager import TrainingManager
+from utils.trmn import TrainingManager
 
 # model
-model_path = ""
+model_path = "" #diffusers形式
 
 #dataset
 dataset_path = "dataset"
@@ -22,15 +22,18 @@ output_dir = "controlnet_output"
 output_name = "controlnet"
 
 # train prameter
+#lr = 1e-5
 repeat = 1
 batch_size = 1
-lr = 1e-5
-num_epochs = 5
+num_epochs = 40
+gradient_accumulation_steps = 1
 save_every_n_epochs = 10
 image_size = 512
 
 # accelerator, dtype, device
-accelerator = Accelerator()
+accelerator = Accelerator(
+    gradient_accumulation_steps=gradient_accumulation_steps,
+)
 device = accelerator.device
 dtype, train_model_dtype = get_optimal_torch_dtype(accelerator.mixed_precision)
 
@@ -53,14 +56,9 @@ text_encoder.requires_grad_(False)
 dataset = ControlNetDataset(dataset_path, vae, tokenizer, text_encoder, image_size,repeat=repeat)
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-"""
-optimizer = torch.optim.AdamW(controlnet.parameters(),lr=lr)
-# (step_size)エポックごとに学習率を(gamma)倍にする
-lr_scheduler = StepLR(optimizer, step_size=10, gamma=0.5)
-"""
 
 optimizer = Adafactor(
-    controlnet.parameters(),
+    get_trainable_params(controlnet),
     scale_parameter=True,
     relative_step=True,
     warmup_init=True,
@@ -69,7 +67,6 @@ optimizer = Adafactor(
 
 lr_scheduler = AdafactorSchedule(
     optimizer,
-    initial_lr=lr
     )
 
 # prepare (acceleratorに渡して wrap する)
@@ -86,12 +83,17 @@ def _save_weight(output_name):
         safe_serialization=True  # safetensors形式で保存
         )
 
-progress = TrainingManager(dataloader,num_epochs,save_every_n_epochs)
+tm = TrainingManager(training_models=[controlnet],
+                     dataloader=dataloader,
+                     num_epochs=num_epochs,
+                     save_every_n_epochs=save_every_n_epochs,
+                     log_interval=100,
+                     )
 
 # train
-controlnet.train()
-for epoch in progress.epochs:
-    for image_latents, positive_embeds, cond_tensors in progress.dataloader:
+tm.train_mode()
+for epoch in tm.epochs:
+    for image_latents, positive_embeds, cond_tensors in dataloader:
         noise = torch.randn_like(image_latents)
         t = torch.randint(0, scheduler.config.num_train_timesteps, (image_latents.size(0),), device=device).long()
 
@@ -124,9 +126,10 @@ for epoch in progress.epochs:
         lr_scheduler.step()
         optimizer.zero_grad()
 
-        progress.step(loss.item())
+        tm.batch_step(loss.item())
 
-    if progress.is_checkpoint():
-        _save_weight(f"{progress.current_epoch}_{output_name}")
+    if tm.is_savepoint():
+        _save_weight(f"{tm.current_epoch}_{output_name}")
 
-    progress.epoch_step()
+    tm.plot(f"log_{tm.current_epoch}",f"{output_dir}/plot")
+    tm.epoch_step()

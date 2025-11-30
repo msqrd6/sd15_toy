@@ -12,15 +12,15 @@ class LoRADataset(torch.utils.data.Dataset):
                  text_encoder, 
                  size=512, 
                  repeat=1,
-                 default_caption = "",
-                 cache_on_cpu = False,
+                 default_caption = None,
                  image_dir = "images",
                  caption_dir = "captions",
-                 
+                 encode_caption = True,
+                 cache_on_cpu = False,
                  ):
         self.vae = vae
         self.image_dir = os.path.join(root_dir, image_dir)
-        self.caption_dir = None if caption_dir is None else os.path.join(root_dir, caption_dir)
+        self.caption_dir = None if default_caption is not None else os.path.join(root_dir, caption_dir)
         self.tokenizer = tokenizer
         self.text_encoder = text_encoder
         self.size = (size,size)
@@ -48,10 +48,12 @@ class LoRADataset(torch.utils.data.Dataset):
                 txt_path = os.path.join(self.caption_dir, os.path.splitext(img_filename)[0] + ".txt")
                 with open(txt_path, "r", encoding="utf-8") as f:
                     caption = f.read().strip()
-            # enbedsを取得
-
-            positive_embeds, _ = encode_prompt(caption,self.tokenizer,self.text_encoder)
-            self.positive_embeds[img_filename] = positive_embeds.squeeze(0).cpu() if self.cache_on_cpu else positive_embeds.squeeze(0)
+            
+            if encode_caption:
+                positive_embeds, _ = encode_prompt(caption,self.tokenizer,self.text_encoder)
+                self.positive_embeds[img_filename] = positive_embeds.squeeze(0).cpu() if self.cache_on_cpu else positive_embeds.squeeze(0)
+            else:
+                self.positive_embeds[img_filename] = caption
 
     def __len__(self):
         return len(self.image_filenames) * self.repeat
