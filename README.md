@@ -7,9 +7,7 @@ Stable Diffusion 1.5の学習・推論を簡潔に行うためのPyTorchベー�
 - **シンプルな実装**: 最小限の依存関係で、SD1.5の学習・推論を実現
 - **LoRA対応**: UNetとTextEncoderへのLoRA注入と学習
 - **ControlNet対応**: マルチControlNetによるガイダンス付き生成
-- **Accelerate統合**: 分散学習とmixed precisionに対応
-- **柔軟なデータセット**: カスタムデータセットで簡単に学習可能
-- **TrainingManager**: 学習進捗の自動管理とロギング機能
+
 
 ## 必要要件
 
@@ -214,100 +212,41 @@ accelerate launch cn_train.py
 
 ```
 dataset/
-├── image1.png
-├── image1.txt
-├── image2.png
-├── image2.txt
-└── ...
+├── images/
+│   ├── image1.png
+│   ├── image2.png
+│   └── ...
+└── captions/
+    ├── image1.txt
+    ├── image2.txt
+    └── ...
 ```
 
-- 画像ファイル（.png, .jpg等）
-- 対応するテキストファイル（同名で拡張子が.txt）
+- `images/`: 画像ファイル（.png, .jpg等）
+- `captions/`: 対応するテキストファイル（同名で拡張子が.txt）
 - テキストファイルにはプロンプトを記述
 
 ### ControlNet学習用データセット
 
 ```
 dataset/
-├── image1.png
-├── image1.txt
-├── cond_image1.png
-├── image2.png
-├── image2.txt
-├── cond_image2.png
-└── ...
+├── images/
+│   ├── image1.png
+│   ├── image2.png
+│   └── ...
+├── captions/
+│   ├── image1.txt
+│   ├── image2.txt
+│   └── ...
+└── conditionings/
+    ├── image1.png
+    ├── image2.png
+    └── ...
 ```
 
-- 画像ファイル（ターゲット画像）
-- テキストファイル（プロンプト）
-- 条件画像ファイル（`cond_`プレフィックス）
-
-## TrainingManager
-
-`TrainingManager`は学習進捗の管理とロギングを自動化するユーティリティクラスです。
-
-**主な機能:**
-- 自動的なエポック・バッチ進捗管理
-- 損失のロギングとプロット
-- チェックポイント保存タイミングの管理
-- バリデーションループのサポート
-
-**使用例:**
-```python
-tm = TrainingManager(
-    training_models=[unet],
-    dataloader=dataloader,
-    num_epochs=num_epochs,
-    save_every_n_epochs=save_every_n_epochs,
-    log_interval=50,  # 50バッチごとにログ
-)
-
-tm.train_mode()
-for epoch in tm.epochs:
-    for batch_data in tm.dataloader:
-        # 学習処理
-        loss = compute_loss(batch_data)
-        
-        # 損失を記録
-        tm.batch_step(loss.item())
-    
-    # チェックポイント保存
-    if tm.is_savepoint():
-        save_model(f"{tm.current_epoch}_model")
-    
-    tm.epoch_step()
-
-# 学習曲線をプロット
-tm.plot(name="training_loss", output_dir="output")
-```
-
-**バリデーション機能:**
-```python
-tm = TrainingManager(
-    training_models=[unet],
-    dataloader=train_dataloader,
-    num_epochs=num_epochs,
-    valid_dataloader=valid_dataloader,
-    valid_every_n_epochs=5,
-    n_batches_valid=10,  # バリデーションバッチ数
-)
-
-for epoch in tm.epochs:
-    # 学習ループ
-    for batch_data in tm.dataloader:
-        # ...
-        tm.batch_step(loss.item())
-    
-    # バリデーション
-    if tm.is_validpoint():
-        tm.valid_start()
-        for valid_batch in tm.valid_dataloader:
-            valid_loss = compute_loss(valid_batch)
-            tm.valid_step(valid_loss)
-        tm.valid_end()
-    
-    tm.epoch_step()
-```
+- `images/`: ターゲット画像ファイル
+- `captions/`: プロンプトのテキストファイル
+- `conditionings/`: 条件画像ファイル（`images/`と同じファイル名）
 
 ## Accelerate設定
 
@@ -320,7 +259,6 @@ accelerate config
 推奨設定:
 - Mixed precision: fp16（GPUメモリ節約）
 - Gradient accumulation: 必要に応じて設定
-- Multi-GPU: 利用可能な場合は有効化
 
 ## ユーティリティ
 
