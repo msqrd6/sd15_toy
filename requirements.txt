@@ -1,0 +1,7 @@
+diffusers
+transformers
+accelerate
+safetensors
+pillow
+matplotlib
+tqdm
