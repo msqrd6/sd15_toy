@@ -6,7 +6,7 @@ from tqdm import tqdm
 from safetensors.torch import load_file
 
 from utils.utils import encode_prompt, prepare_empty_latent,decode_latents
-from utils.lora_utils import inject_pretrained_lora_into_model
+from utils.lora_utils import load_lora
 from utils.convert_utils import convert_injectable_dict_from_khoya_weight
 
 
@@ -51,7 +51,7 @@ weights, te_lora_dict  = convert_injectable_dict_from_khoya_weight(weights)
 inject_pretrained_lora_into_model(text_encoder,te_lora_dict,strength)
 """
 
-inject_pretrained_lora_into_model(unet,weights,strength)
+load_lora(unet,weights,strength)
 
 #prepare
 positive_embeds, negative_embeds = encode_prompt(prompts, tokenizer, text_encoder,negative_prompt=negative_prompt)

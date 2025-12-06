@@ -9,7 +9,7 @@ from accelerate import Accelerator
 
 from utils.dataset_utils import LoRADataset
 from utils.utils import get_optimal_torch_dtype, get_trainable_params
-from utils.lora_utils import inject_init_lora_into_model, get_lora_dict_from_model
+from utils.lora_utils import inject_lora, get_lora_state_dict
 from utils.trmn import TrainingManager
 
 # base_model
@@ -62,15 +62,7 @@ dataset = LoRADataset(dataset_path, vae, tokenizer, text_encoder, image_size,rep
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 # inject lora
-inject_init_lora_into_model(unet,
-                           rank,
-                           alpha,
-                           dropout,
-                           inject_layer_key=["attentions"],
-                           linear=True,
-                           conv2d=False,
-                           )
-
+inject_lora(unet, rank, alpha, dropout, inject_layer_key=["attentions"], linear=True, conv2d=False,)
 
 optimizer = Adafactor(
     get_trainable_params(unet),
@@ -101,7 +93,7 @@ tm = TrainingManager(trainable_modules=[unet],
 def _save(output_name,unet):
     os.makedirs(output_dir,exist_ok=True)
     unet_to_save = accelerator.unwrap_model(unet)
-    lora_state_dict = get_lora_dict_from_model(unet_to_save)
+    lora_state_dict = get_lora_state_dict(unet_to_save)
     save_file(lora_state_dict, os.path.join(output_dir, output_name+".safetensors"))
 
 

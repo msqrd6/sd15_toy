@@ -93,7 +93,7 @@ def _inject_empty_lora_layer(model,module_name):
     
 
 
-def inject_init_lora_into_model(model, rank=4, alpha=1.0, dropout=0.0,inject_layer_key:list[str]=[],linear:bool=True,conv2d:bool=True):
+def inject_lora(model, rank=4, alpha=1.0, dropout=0.0,inject_layer_key:list[str]=[],linear:bool=True,conv2d:bool=True):
    #loraを注入する層か判定
     def needs_lora_injection(module_name):
         if len(inject_layer_key) == 0:
@@ -117,14 +117,12 @@ def inject_init_lora_into_model(model, rank=4, alpha=1.0, dropout=0.0,inject_lay
 
 
     for module_name, module in target_modules:
-            #network_alphas[module_name+".alpha"] = torch.tensor(alpha)
             lora_layer = _inject_empty_lora_layer(model,module_name)
             lora_layer.append_lora_layer(rank,alpha,strength=1.0,dropout=dropout)
 
-    #return network_alphas
 
 
-def inject_pretrained_lora_into_model(base_model,lora_state_dict,strength=1.0):
+def load_lora(base_model,lora_state_dict,strength=1.0):
     for key, value in lora_state_dict.items():
         if not "lora_A" in key: continue
         base_key = key.split(".lora_A.")[0]
@@ -139,7 +137,7 @@ def inject_pretrained_lora_into_model(base_model,lora_state_dict,strength=1.0):
     
     base_model.requires_grad_(False)
 
-def remove_lora_from_model(model):
+def unload_lora(model):
 
     for name, child in model.named_children():
         # もし子モジュールが LoRA クラスなら
@@ -151,7 +149,7 @@ def remove_lora_from_model(model):
             else:
                 setattr(model, name, original_layer)
         else:
-            remove_lora_from_model(child)
+            unload_lora(child)
 
     return model
 
@@ -178,7 +176,7 @@ def marge_lora_and_weight(lora_state_dict,base_state_dict,strength=1.0):
     return output_state_dict
 
 
-def get_lora_dict_from_model(model:nn.Module,get_model_dict=False):
+def get_lora_state_dict(model:nn.Module,get_model_dict=False):
     lora_state_dict = {}
     model_state_dict = {}
 
