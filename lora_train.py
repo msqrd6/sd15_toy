@@ -98,7 +98,6 @@ def _save(output_name,unet):
 
 
 # 学習ループ
-tm.train_mode()
 for epoch in tm.epochs:
     for latents, positive_embeds in tm.dataloader:
         noise = torch.randn_like(latents)
