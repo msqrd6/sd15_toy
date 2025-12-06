@@ -89,12 +89,13 @@ unet, text_encoder, optimizer, lr_scheduler, dataloader = accelerator.prepare(
     unet, text_encoder, optimizer, lr_scheduler, dataloader
 )
 
-tm = TrainingManager(training_models=[unet],
-                           dataloader=dataloader,
-                           num_epochs=num_epochs,
-                           save_every_n_epochs=save_every_n_epochs,
-                           log_interval=50,
-                           )
+tm = TrainingManager(trainable_modules=[unet],
+                     frozen_modules=[text_encoder,vae],
+                     dataloader=dataloader,
+                     num_epochs=num_epochs,
+                     save_every_n_epochs=save_every_n_epochs,
+                     log_interval=100,
+                     )
 
 
 def _save(output_name,unet):

@@ -83,15 +83,15 @@ def _save_weight(output_name):
         safe_serialization=True  # safetensors形式で保存
         )
 
-tm = TrainingManager(training_models=[controlnet],
+tm = TrainingManager(trainable_modules=[controlnet],
+                     frozen_modules=[vae,unet,text_encoder],
                      dataloader=dataloader,
                      num_epochs=num_epochs,
                      save_every_n_epochs=save_every_n_epochs,
                      log_interval=100,
                      )
 
-# train
-tm.train_mode()
+
 for epoch in tm.epochs:
     for image_latents, positive_embeds, cond_tensors in dataloader:
         noise = torch.randn_like(image_latents)

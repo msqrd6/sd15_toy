@@ -8,16 +8,16 @@ from torch.utils.data import DataLoader
 
 class TrainingManager():
     def __init__(self, 
-                 training_models: list[nn.Module],
+                 trainable_modules: list[nn.Module],
                  dataloader: DataLoader,
                  num_epochs: int,
                  save_every_n_epochs: int = None,
+                 frozen_modules: list[nn.Module]=[],
                  log_interval: int = None,
                  valid_dataloader: DataLoader = None,
                  valid_every_n_epochs: int = None,
                  n_batches_valid: int = None,
                  ):
-        
         
         self.dataloader = dataloader
         try:
@@ -28,7 +28,7 @@ class TrainingManager():
         self.num_epochs = num_epochs
         self.save_every_n_epochs = save_every_n_epochs
 
-        self.training_models = training_models
+        self.trainable_modules = trainable_modules
 
         self.total_step = self.dataset_len * self.num_epochs
         self.current_iter = 0
@@ -62,6 +62,10 @@ class TrainingManager():
         self.valid_loss = 0.0
         self.val_log = []
 
+        for module in frozen_modules:
+            if hasattr(module, 'eval') and callable(module.eval):
+                module.eval()
+
         # set train mode
         self.train_mode()
 
@@ -73,15 +77,23 @@ class TrainingManager():
         return islice(self._raw_valid_dataloader, self.n_batches_valid)
 
 
-    def train_mode(self):
-        for model in self.training_models:
-            if hasattr(model, 'train') and callable(model.train):
-                model.train()
+    def train(self):
+        for module in self.trainable_modules:
+            if hasattr(module, 'train') and callable(module.train):
+                module.train()
 
-    def eval_mode(self):   
-        for model in self.training_models:
-            if hasattr(model, 'eval') and callable(model.eval):
-                model.eval()
+    def eval(self):   
+        for module in self.trainable_modules:
+            if hasattr(module, 'eval') and callable(module.eval):
+                module.eval()
+
+    def get_trainable_params(self) -> list[torch.Tensor]:
+        trainable_params = []
+        for module in self.trainable_modules:
+            for param in module.parameters():
+                if param.requires_grad:
+                    trainable_params.append(param)
+        return trainable_params
 
 
     def batch_step(self, loss, **kwargs) -> None:
@@ -181,4 +193,5 @@ class TrainingManager():
 
             plt.savefig(output_path)
             plt.close()
+
 
